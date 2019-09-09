@@ -1,0 +1,7 @@
+[package]
+name = "bigint"
+version = "0.1.0"
+authors = ["crash <crash@inventati.org>"]
+edition = "2018"
+
+[dependencies]
