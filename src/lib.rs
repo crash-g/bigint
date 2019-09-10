@@ -30,11 +30,15 @@ pub mod optimized_memory {
                 for i in 0..chunks.len() {
                     let temp: u64 = if carry > 0 {
                         let original_chunk_size = if i == chunks.len() - 1 {
-                            s.len() % BigInt::PARSE_STEP
+                            if s.len() % BigInt::PARSE_STEP == 0 {
+                                BigInt::PARSE_STEP
+                            } else {
+                                s.len() % BigInt::PARSE_STEP
+                            }
                         } else {
                             BigInt::PARSE_STEP
                         };
-                        BigInt::apply_carry(chunks[i], carry, original_chunk_size)
+                        chunks[i] + carry * 10_u64.pow(original_chunk_size as u32)
                     } else {
                         chunks[i]
                     };
@@ -50,18 +54,6 @@ pub mod optimized_memory {
                 }
             }
             result
-        }
-
-        /// Helper function for `from_string`.
-        fn apply_carry(u: u64, carry: u64, original_size: usize) -> u64 {
-            let u_string = u.to_string();
-            if u_string.len() < original_size {
-                (carry.to_string() + &"0".repeat(original_size - u_string.len()) + &u_string)
-                    .parse()
-                    .unwrap()
-            } else {
-                (carry.to_string() + &u.to_string()).parse().unwrap()
-            }
         }
 
         /// Helper function for `from_string`.
@@ -99,8 +91,8 @@ pub mod optimized_memory {
     impl Eq for BigInt {}
 
     pub fn sum(b1: &BigInt, b2: &BigInt) -> BigInt {
-        let mut result = BigInt::zero();
         let largest = std::cmp::max(b1.data.len(), b2.data.len());
+        let mut result = BigInt{data: Vec::with_capacity(largest)};
         let mut carry = 0;
         for i in 0..largest {
             let digit_sum = b1.get(i) as u64 + b2.get(i) as u64 + carry;
@@ -121,7 +113,7 @@ pub mod optimized_memory {
     }
 
     pub fn product(b1: &BigInt, b2: &BigInt) -> BigInt {
-        let mut result = BigInt::zero();
+        let mut result = BigInt{data: Vec::with_capacity(b1.data.len())};
 
         for (i, d) in b2.data.iter().enumerate() {
             if *d > 0 {
@@ -135,7 +127,7 @@ pub mod optimized_memory {
     }
 
     fn atomic_product(b1: &BigInt, d: u32) -> BigInt {
-        let mut result = BigInt::zero();
+        let mut result = BigInt{data: Vec::with_capacity(b1.data.len())};
         let mut carry = 0;
         for d1 in &b1.data {
             let digit_product = (*d1 as u64 * d as u64) + carry;
@@ -150,13 +142,17 @@ pub mod optimized_memory {
         result
     }
 
-    fn split_string(s: &str, step: usize) -> Vec<u64> {
+    /// Helper function for `BigInt::from_string`. The input must be a numeric string.
+    ///
+    /// It returns the string split by chunks with size `chunk_size`, except the last
+    /// chunk which may be shorter.
+    fn split_string(s: &str, chunk_size: usize) -> Vec<u64> {
         let mut result = Vec::new();
         let mut i = 0;
         while i < s.len() {
-            let right = std::cmp::min(i + step, s.len());
+            let right = std::cmp::min(i + chunk_size, s.len());
             result.push(s[i..right].parse().unwrap());
-            i = i + step;
+            i = i + chunk_size;
         }
         result
     }
@@ -218,6 +214,12 @@ pub mod optimized_memory {
             assert_eq!(
                 BigInt { data: vec![0, 1] },
                 BigInt::from_string("4294967296")
+            );
+            assert_eq!(
+                BigInt {
+                    data: vec![937946958, 287445]
+                },
+                BigInt::from_string("1234567812345678")
             );
             assert_eq!(
                 BigInt {
